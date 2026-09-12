@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>درع — منصة التوعية الأمنية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#090C0F;
+    --bg-grid:#0D1216;
+    --panel:#11161B;
+    --panel-2:#161D23;
+    --line:#232C33;
+    --line-soft:#1A2129;
+    --signal:#48E4D0;
+    --signal-dim:#173B37;
+    --risk:#FF5D3B;
+    --risk-dim:#3A1F17;
+    --warn:#F0B429;
+    --warn-dim:#3A2F14;
+    --safe:#5FD98A;
+    --safe-dim:#173A28;
+    --text:#E7EEED;
+    --muted:#7E8D93;
+    --muted-2:#586269;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    background:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0/100% 44px,
+      var(--bg);
+    color:var(--text);
+    min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace}
+  a{color:inherit}
+  button{font-family:inherit}
+  input,select{font-family:inherit}
+
+  /* ============ عناصر مشتركة ============ */
+  .panel{
+    position:relative;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+  }
+  .bracket::before,.bracket::after{
+    content:'';position:absolute;width:16px;height:16px;pointer-events:none;
+  }
+  .bracket::before{top:-1px;right:-1px;border-top:2px solid var(--signal);border-right:2px solid var(--signal)}
+  .bracket::after{bottom:-1px;left:-1px;border-bottom:2px solid var(--signal);border-left:2px solid var(--signal)}
+
+  input, select{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:12px 14px;border-radius:5px;font-size:14px;margin-bottom:16px;
+  }
+  input:focus, select:focus{outline:none;border-color:var(--signal)}
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px}
+
+  .btn{
+    background:var(--signal);color:#06201C;border:none;padding:12px 22px;border-radius:5px;
+    font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn.secondary{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .btn.secondary:hover{border-color:var(--muted)}
+  .btn.danger{background:var(--risk-dim);color:var(--risk);border:1px solid rgba(255,93,59,0.3)}
+  .btn.ghost{background:transparent;color:var(--muted);border:none;font-size:13px}
+
+  .pulseDot{
+    width:7px;height:7px;border-radius:50%;background:var(--signal);flex-shrink:0;
+    box-shadow:0 0 0 0 rgba(72,228,208,0.6);
+    animation:pulse 2.2s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(72,228,208,0.45)}
+    70%{box-shadow:0 0 0 8px rgba(72,228,208,0)}
+    100%{box-shadow:0 0 0 0 rgba(72,228,208,0)}
+  }
+
+  /* ============ شاشة الدخول ============ */
+  #loginScreen{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+    position:relative;overflow:hidden;
+  }
+  #netCanvas{
+    position:absolute;inset:0;width:100%;height:100%;z-index:0;
+  }
+  .radarSweep{
+    position:absolute;inset:-20%;z-index:0;pointer-events:none;
+    background:conic-gradient(from 0deg, rgba(72,228,208,0.14), transparent 18%, transparent 100%);
+    animation:sweep 7s linear infinite;
+    border-radius:50%;
+  }
+  @keyframes sweep{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){
+    .radarSweep{animation:none}
+  }
+  .scanline{
+    position:absolute;left:0;right:0;height:120px;z-index:1;
+    background:linear-gradient(180deg, transparent, rgba(72,228,208,0.06), transparent);
+    animation:scan 3.2s ease-in-out 1;
+    pointer-events:none;
+  }
+  @keyframes scan{
+    0%{top:-120px}
+    100%{top:100vh}
+  }
+  .loginCard{
+    background:rgba(17,22,27,0.88);backdrop-filter:blur(10px);
+    border:1px solid var(--line);border-radius:8px;
+    padding:38px 32px;width:100%;max-width:380px;position:relative;z-index:2;
+  }
+  .loginBrand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .loginBrand svg{width:26px;height:26px;flex-shrink:0}
+  .loginBrand span{font-size:20px;font-weight:700;letter-spacing:0.3px}
+  .loginSub{color:var(--muted);font-size:13.5px;margin-bottom:26px;line-height:1.6}
+  .statusLine{
+    display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);
+    margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft);
+  }
+  .errMsg{color:var(--risk);font-size:13px;margin-top:-8px;margin-bottom:14px;display:none}
+
+  /* ============ التطبيق ============ */
+  #app{display:none;min-height:100vh;padding-bottom:76px;position:relative}
+  #app.active{display:block}
+  #appNetCanvas{
+    position:fixed;inset:0;z-index:-1;opacity:0.55;pointer-events:none;
+  }
+
+  header.topbar{
+    position:sticky;top:0;z-index:20;
+    background:rgba(9,12,15,0.92);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    padding:14px 20px;display:flex;align-items:center;justify-content:space-between;
+  }
+  header.topbar::after{
+    content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+    background:linear-gradient(90deg, transparent, rgba(72,228,208,0.55), transparent);
+  }
+  header.topbar{position:sticky}
+  header.topbar .brand{display:flex;align-items:center;gap:9px;position:relative}
+  header.topbar .brand svg{width:20px;height:20px;filter:drop-shadow(0 0 4px rgba(72,228,208,0.5))}
+  header.topbar .brand span{font-weight:700;font-size:16px}
+  header.topbar .liveInfo{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+
+  main{padding:20px 16px 8px}
+
+  .view{display:none}
+  .view.active{display:block}
+  .viewHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;flex-wrap:wrap}
+  .viewHeader h1{font-size:19px;font-weight:700}
+  .viewHeader .hint{font-size:12.5px;color:var(--muted);margin-top:3px}
+
+  .heroGauge{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:28px 16px 22px;margin-bottom:14px;
+  }
+  .gaugeWrap{position:relative;width:176px;height:176px}
+  .gaugeSvg{width:100%;height:100%;transform:rotate(0deg)}
+  .gaugeTrack{fill:none;stroke:var(--line);stroke-width:9}
+  .gaugeArc{
+    fill:none;stroke:var(--signal);stroke-width:9;stroke-linecap:round;
+    transform-origin:60px 60px;transform:rotate(-90deg);
+    transition:stroke-dashoffset 1.1s cubic-bezier(.4,0,.2,1), stroke 0.3s;
+    filter:drop-shadow(0 0 7px rgba(72,228,208,0.55));
+  }
+  .gaugeArc.riskState{filter:drop-shadow(0 0 7px rgba(255,93,59,0.55))}
+  .gaugeCenter{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:0 24px;
+  }
+  .gaugeNum{font-size:32px;font-weight:600}
+  .gaugeLbl{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+  .statsRow{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+  .statBox{
+    background:var(--panel);border:1px solid var(--line);border-top:2px solid var(--signal);
+    border-radius:5px;padding:14px 16px;min-width:130px;flex:1;
+    display:flex;align-items:center;gap:12px;
+  }
+  .statBox svg{width:18px;height:18px;color:var(--signal);flex-shrink:0}
+  .statBox.risk{border-top-color:var(--risk)}
+  .statBox.risk svg{color:var(--risk)}
+  .statBox.safe{border-top-color:var(--safe)}
+  .statBox.safe svg{color:var(--safe)}
+  .statBox .num{font-family:'IBM Plex Mono', monospace;font-size:24px;font-weight:600}
+  .statBox .lbl{color:var(--muted);font-size:11.5px;margin-top:2px}
+
+  section.panel{padding:4px 0;margin-bottom:20px}
+  section.panel .panelHead{
+    padding:14px 16px;border-bottom:1px solid var(--line-soft);
+    font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;
+  }
+  section.panel .panelHead .pulseDot{width:5px;height:5px}
+
+  .empty{color:var(--muted);text-align:center;padding:44px 16px 40px;font-size:13.5px}
+  .empty svg{width:30px;height:30px;color:var(--line);display:block;margin:0 auto 12px}
+
+  /* ---- جدول/كروت البيانات: جدول على الشاشات الواسعة، كروت على الموبايل ---- */
+  table{width:100%;border-collapse:collapse}
+  th{
+    text-align:right;font-size:11.5px;color:var(--muted-2);font-weight:600;
+    padding:10px 16px;border-bottom:1px solid var(--line-soft);
+  }
+  td{padding:12px 16px;font-size:13.5px;border-bottom:1px solid var(--line-soft)}
+  tr:last-child td{border-bottom:none}
+
+  @media (max-width: 700px){
+    thead{display:none}
+    table, tbody, tr, td{display:block;width:100%}
+    tr{border-bottom:1px solid var(--line-soft);padding:12px 16px}
+    tr:last-child{border-bottom:none}
+    td{
+      border:none;padding:5px 0;display:flex;justify-content:space-between;align-items:center;
+      gap:12px;font-size:13.5px;
+    }
+    td[data-label]::before{
+      content:attr(data-label);color:var(--muted-2);font-size:11.5px;flex-shrink:0;
+    }
+    td.rowTitle{font-size:14.5px;font-weight:600;padding-bottom:8px;display:block}
+    td.rowTitle::before{content:none}
+    td.rowAction{justify-content:flex-end}
+    td.rowAction::before{content:none}
+  }
+
+  .pill{
+    padding:3px 11px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .pill.sent{background:var(--signal-dim);color:var(--signal)}
+  .pill.clicked{background:var(--warn-dim);color:var(--warn)}
+  .pill.submitted{background:var(--risk-dim);color:var(--risk)}
+  .pill.completed{background:var(--safe-dim);color:var(--safe)}
+  .pill.draft{background:var(--line-soft);color:var(--muted)}
+
+  /* ---- شريط التنقل السفلي ---- */
+  nav.tabbar{
+    position:fixed;bottom:0;left:0;right:0;z-index:30;
+    background:rgba(11,16,20,0.97);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);
+    display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+  }
+  .navItem{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:8px 4px;border-radius:6px;color:var(--muted);cursor:pointer;
+  }
+  .navItem svg{width:19px;height:19px}
+  .navItem span{font-size:10.5px}
+  .navItem.active{color:var(--signal)}
+
+  /* ---- نوافذ منبثقة ---- */
+  .modal{
+    display:none;position:fixed;inset:0;background:rgba(4,6,8,0.72);
+    align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .modal.active{display:flex}
+  .modalCard{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px 12px 0 0;
+    padding:26px 20px calc(26px + env(safe-area-inset-bottom));width:100%;max-width:560px;
+    max-height:88vh;overflow-y:auto;
+  }
+  .modalCard h2{margin-bottom:18px;font-size:16.5px;font-weight:700}
+  .checkRow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-soft)}
+  .checkRow input{width:auto;margin:0}
+  .linkBox{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:5px;
+    padding:9px 11px;font-size:11.5px;color:var(--muted);word-break:break-all;margin-bottom:8px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .consentBox{
+    background:var(--warn-dim);border:1px solid rgba(240,180,41,0.3);
+    border-radius:6px;padding:13px 15px;margin-bottom:18px;font-size:12.5px;color:var(--text);
+    line-height:1.7;
+  }
+  .btnRow{display:flex;gap:10px;margin-top:6px}
+</style>
+</head>
+<body>
+
+<!-- ============ شاشة تسجيل الدخول ============ -->
+<div id="loginScreen">
+  <canvas id="netCanvas"></canvas>
+  <div class="radarSweep"></div>
+  <div class="scanline"></div>
+  <div class="loginCard panel bracket">
+    <div class="loginBrand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#48E4D0" stroke-width="1.6"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></svg>
+      <span>درع</span>
+    </div>
+    <p class="loginSub">منصة التوعية الأمنية ومحاكاة التصيّد الاحتيالي</p>
+    <label>البريد الإلكتروني</label>
+    <input type="email" id="loginEmail" placeholder="admin@example.com">
+    <label>كلمة المرور</label>
+    <input type="password" id="loginPass" placeholder="••••••••">
+    <div class="errMsg" id="loginErr"></div>
+    <button class="btn" style="width:100%" onclick="login()">دخول</button>
+    <div class="statusLine">
+      <span class="pulseDot"></span>
+      <span class="mono">SYSTEM READY</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ التطبيق الرئيسي ============ -->
+<div id="app">
+  <canvas id="appNetCanvas"></canvas>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#48E4D0" stroke-width="1.6"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></svg>
+      <span>درع</span>
+    </div>
+    <div class="liveInfo">
+      <span class="pulseDot"></span>
+      <span class="mono" id="clockNow">--:--</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- نظرة عامة -->
+    <div class="view active" id="view-dashboard">
+      <div class="viewHeader">
+        <div><h1>نظرة عامة</h1><div class="hint">حالة الحملات ومؤشرات المخاطر</div></div>
+      </div>
+
+      <section class="panel bracket heroGauge">
+        <div class="gaugeWrap">
+          <svg class="gaugeSvg" viewBox="0 0 120 120">
+            <circle class="gaugeTrack" cx="60" cy="60" r="52"/>
+            <circle class="gaugeArc" id="gaugeArc" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+          </svg>
+          <div class="gaugeCenter">
+            <div class="gaugeNum mono" id="gaugeNum">0%</div>
+            <div class="gaugeLbl">متوسط نسبة الوقوع بالفخ<br>عبر كل الحملات</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="statsRow" id="statsRow"></div>
+      <section class="panel">
+        <div class="panelHead"><span class="pulseDot"></span>الحملات</div>
+        <table>
+          <thead><tr><th>الحملة</th><th>الحالة</th><th>المستهدفون</th><th>نسبة الوقوع</th></tr></thead>
+          <tbody id="dashboardCampaignsBody"><tr><td colspan="4" class="empty">جاري التحميل...</td></tr></tbody>
+        </table>
+      </section>
+    </div>
+
+    <!-- الموظفون -->
+    <div class="view" id="view-employees">
+      <div class="viewHeader">
+        <div><h1>الموظفون</h1><div class="hint">قائمة المستهدفين بحملات التوعية</div></div>
+        <button class="btn" onclick="openModal('employeeModal')">+ إضافة</button>
+      </div>
+      <section class="panel">
+        <table>
+          <thead><tr><th>الاسم</th><th>الإيميل</th><th>القسم</th><th></th></tr></thead>
+          <tbody id="employeesBody"><tr><td colspan="4" class="empty">جاري التحميل...</td></tr></tbody>
+        </table>
+      </section>
+    </div>
+
+    <!-- الحملات -->
+    <div class="view" id="view-campaigns">
+      <div class="viewHeader">
+        <div><h1>الحملات</h1><div class="hint">حملات محاكاة التصيّد النشطة والسابقة</div></div>
+        <button class="btn" onclick="openCampaignModal()">+ حملة جديدة</button>
+      </div>
+      <section class="panel">
+        <table>
+          <thead><tr><th>الاسم</th><th>القالب</th><th>الحالة</th><th>المسؤول</th><th></th></tr></thead>
+          <tbody id="campaignsBody"><tr><td colspan="5" class="empty">جاري التحميل...</td></tr></tbody>
+        </table>
+      </section>
+    </div>
+
+    <!-- القوالب -->
+    <div class="view" id="view-templates">
+      <div class="viewHeader">
+        <div><h1>القوالب</h1><div class="hint">نصوص رسائل التصيّد الجاهزة</div></div>
+      </div>
+      <section class="panel">
+        <table>
+          <thead><tr><th>الاسم</th><th>العنوان</th><th>الصعوبة</th></tr></thead>
+          <tbody id="templatesBody"><tr><td colspan="3" class="empty">جاري التحميل...</td></tr></tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+
+  <nav class="tabbar">
+    <div class="navItem active" data-view="dashboard" onclick="switchView('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      <span>نظرة عامة</span>
+    </div>
+    <div class="navItem" data-view="employees" onclick="switchView('employees')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M15.5 12.5c2.5.3 4.5 2.5 4.5 5.5"/></svg>
+      <span>الموظفون</span>
+    </div>
+    <div class="navItem" data-view="campaigns" onclick="switchView('campaigns')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/></svg>
+      <span>الحملات</span>
+    </div>
+    <div class="navItem" data-view="templates" onclick="switchView('templates')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+      <span>القوالب</span>
+    </div>
+    <div class="navItem" onclick="logout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 21H5a1 1 0 01-1-1V4a1 1 0 011-1h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
+      <span>خروج</span>
+    </div>
+  </nav>
+</div>
+
+<!-- ============ نافذة إضافة موظف ============ -->
+<div class="modal" id="employeeModal">
+  <div class="modalCard">
+    <h2>إضافة موظف</h2>
+    <label>الاسم الكامل</label>
+    <input type="text" id="empName">
+    <label>البريد الإلكتروني</label>
+    <input type="email" id="empEmail">
+    <label>القسم (اختياري)</label>
+    <input type="text" id="empDept">
+    <div class="btnRow">
+      <button class="btn" onclick="addEmployee()">حفظ</button>
+      <button class="btn secondary" onclick="closeModal('employeeModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ نافذة إنشاء حملة ============ -->
+<div class="modal" id="campaignModal">
+  <div class="modalCard">
+    <h2>حملة تصيّد جديدة</h2>
+    <div class="consentBox">
+      هذه الحملة تُرسل فقط لموظفين داخل مؤسستك وبموافقة إدارية موثّقة. لا تُستخدم لاستهداف أي جهة خارج نطاق تفويضك.
+    </div>
+    <label>اسم الحملة</label>
+    <input type="text" id="campName" placeholder="مثال: حملة الربع الثالث 2026">
+    <label>القالب</label>
+    <select id="campTemplate"></select>
+    <label>الموظفون المستهدفون</label>
+    <div id="campEmployeesList" style="max-height:180px;overflow-y:auto;margin-bottom:16px"></div>
+    <label>اسم المسؤول المخوّل بالموافقة</label>
+    <input type="text" id="campAuthorizedBy" placeholder="الاسم الكامل">
+    <div class="btnRow">
+      <button class="btn" onclick="createCampaign()">إنشاء الحملة</button>
+      <button class="btn secondary" onclick="closeModal('campaignModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ نافذة تفاصيل/نتائج الحملة ============ -->
+<div class="modal" id="campaignDetailModal">
+  <div class="modalCard" style="max-width:720px">
+    <h2 id="campaignDetailTitle">تفاصيل الحملة</h2>
+    <div class="statsRow" id="campaignDetailStats"></div>
+    <section class="panel" style="margin-bottom:16px">
+      <table>
+        <thead><tr><th>الموظف</th><th>الحالة</th><th>رابط التتبع</th></tr></thead>
+        <tbody id="campaignDetailBody"></tbody>
+      </table>
+    </section>
+    <button class="btn secondary" style="width:100%" onclick="closeModal('campaignDetailModal')">إغلاق</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  // ================= إعدادات Supabase =================
+  const SUPABASE_URL = "https://jkulprntmtumvpoperbr.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprdWxwcm50bXR1bXZwb3BlcmJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxNjA5NjMsImV4cCI6MjEwNDczNjk2M30.b8sBmZi_okr8FoaHIUpBGeFVKlmu8HkTDA0q8IEh3q0";
+  const LANDING_PAGE_URL = "https://zazaza12343142-ship-it.github.io/awareness-shield/landing.html";
+
+  // ================= إعدادات EmailJS =================
+  const EMAILJS_SERVICE_ID = "service_johl5tl";
+  const EMAILJS_TEMPLATE_ID = "template_anz1ohs";
+  const EMAILJS_PUBLIC_KEY = "yAoeCvztwb8riEX70";
+  emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  // ======================================================
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let employeesCache = [];
+  let templatesCache = [];
+  let campaignsCache = [];
+
+  // ---------- خلفية شبكة العقد المتحركة ----------
+  function initNetworkBg(canvasId, opts){
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const lineAlpha = opts && opts.lineAlpha || 0.16;
+    const dotAlpha = opts && opts.dotAlpha || 0.55;
+
+    function resize(){
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const NODE_COUNT = window.innerWidth < 700 ? 22 : 40;
+    const nodes = Array.from({length: NODE_COUNT}, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: (Math.random() - 0.5) * 0.15
+    }));
+    const LINK_DIST = 150;
+
+    function frame(){
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      nodes.forEach(n => {
+        n.x += n.vx; n.y += n.vy;
+        if(n.x < 0 || n.x > canvas.width) n.vx *= -1;
+        if(n.y < 0 || n.y > canvas.height) n.vy *= -1;
+      });
+      for(let i = 0; i < nodes.length; i++){
+        for(let j = i + 1; j < nodes.length; j++){
+          const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if(dist < LINK_DIST){
+            const alpha = (1 - dist / LINK_DIST) * lineAlpha;
+            ctx.strokeStyle = `rgba(72,228,208,${alpha})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(nodes[i].x, nodes[i].y);
+            ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+      nodes.forEach(n => {
+        ctx.fillStyle = `rgba(72,228,208,${dotAlpha})`;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      if(!reduceMotion) requestAnimationFrame(frame);
+    }
+    frame();
+  }
+  initNetworkBg('netCanvas', {lineAlpha:0.16, dotAlpha:0.55});
+  let appNetStarted = false;
+
+  // ---------- الساعة الحية بأعلى التطبيق ----------
+  function tickClock(){
+    const now = new Date();
+    document.getElementById('clockNow').textContent =
+      now.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+  }
+  setInterval(tickClock, 1000 * 15);
+
+  // ---------- تسجيل الدخول ----------
+  async function login(){
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPass').value;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){
+      const el = document.getElementById('loginErr');
+      el.textContent = 'فشل الدخول: تأكد من البريد وكلمة المرور';
+      el.style.display = 'block';
+      return;
+    }
+    enterApp();
+  }
+
+  async function logout(){
+    await sb.auth.signOut();
+    document.getElementById('app').classList.remove('active');
+    document.getElementById('loginScreen').style.display = 'flex';
+  }
+
+  async function enterApp(){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').classList.add('active');
+    if(!appNetStarted){
+      appNetStarted = true;
+      initNetworkBg('appNetCanvas', {lineAlpha:0.08, dotAlpha:0.3});
+    }
+    tickClock();
+    await loadEmployees();
+    await loadTemplates();
+    await loadCampaigns();
+    renderDashboard();
+  }
+
+  sb.auth.getSession().then(({data}) => {
+    if(data.session) enterApp();
+  });
+
+  // ---------- التنقل ----------
+  function switchView(name){
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.navItem').forEach(n => n.classList.remove('active'));
+    document.getElementById('view-'+name).classList.add('active');
+    document.querySelector(`.navItem[data-view="${name}"]`).classList.add('active');
+    window.scrollTo(0,0);
+  }
+
+  function openModal(id){ document.getElementById(id).classList.add('active'); }
+  function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+
+  // ---------- الموظفون ----------
+  async function loadEmployees(){
+    const { data, error } = await sb.from('employees').select('*').order('created_at', {ascending:false});
+    if(error) return;
+    employeesCache = data;
+    const body = document.getElementById('employeesBody');
+    if(data.length === 0){ body.innerHTML = '<tr><td colspan="4" class="empty">لا يوجد موظفون بعد</td></tr>'; return; }
+    body.innerHTML = data.map(e => `
+      <tr>
+        <td class="rowTitle">${e.full_name}</td>
+        <td data-label="الإيميل" class="mono">${e.email}</td>
+        <td data-label="القسم">${e.department || '—'}</td>
+        <td class="rowAction"><button class="btn danger" onclick="deleteEmployee('${e.id}')">حذف</button></td>
+      </tr>
+    `).join('');
+  }
+
+  async function addEmployee(){
+    const full_name = document.getElementById('empName').value.trim();
+    const email = document.getElementById('empEmail').value.trim();
+    const department = document.getElementById('empDept').value.trim();
+    if(!full_name || !email) return alert('الاسم والإيميل مطلوبين');
+    const { error } = await sb.from('employees').insert({ full_name, email, department });
+    if(error) return alert('خطأ: ' + error.message);
+    document.getElementById('empName').value = '';
+    document.getElementById('empEmail').value = '';
+    document.getElementById('empDept').value = '';
+    closeModal('employeeModal');
+    loadEmployees();
+  }
+
+  async function deleteEmployee(id){
+    if(!confirm('حذف هذا الموظف؟')) return;
+    await sb.from('employees').delete().eq('id', id);
+    loadEmployees();
+  }
+
+  // ---------- القوالب ----------
+  async function loadTemplates(){
+    const { data, error } = await sb.from('templates').select('*').order('created_at');
+    if(error) return;
+    templatesCache = data;
+    const body = document.getElementById('templatesBody');
+    if(data.length === 0){ body.innerHTML = '<tr><td colspan="3" class="empty">لا توجد قوالب</td></tr>'; return; }
+    body.innerHTML = data.map(t => `
+      <tr>
+        <td class="rowTitle">${t.name}</td>
+        <td data-label="العنوان">${t.subject}</td>
+        <td data-label="الصعوبة"><span class="pill sent">${t.difficulty}</span></td>
+      </tr>
+    `).join('');
+    const sel = document.getElementById('campTemplate');
+    sel.innerHTML = data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  }
+
+  // ---------- الحملات ----------
+  async function openCampaignModal(){
+    const list = document.getElementById('campEmployeesList');
+    if(employeesCache.length === 0){
+      list.innerHTML = '<p style="color:var(--muted);font-size:13px">أضف موظفين أولًا من قسم "الموظفون"</p>';
+    } else {
+      list.innerHTML = employeesCache.map(e => `
+        <div class="checkRow">
+          <input type="checkbox" value="${e.id}" class="empCheck">
+          <span>${e.full_name} — <span class="mono" style="font-size:12px;color:var(--muted)">${e.email}</span></span>
+        </div>
+      `).join('');
+    }
+    openModal('campaignModal');
+  }
+
+  async function createCampaign(){
+    const name = document.getElementById('campName').value.trim();
+    const template_id = document.getElementById('campTemplate').value;
+    const authorized_by = document.getElementById('campAuthorizedBy').value.trim();
+    const selectedIds = Array.from(document.querySelectorAll('.empCheck:checked')).map(c => c.value);
+
+    if(!name || !template_id) return alert('اسم الحملة والقالب مطلوبين');
+    if(!authorized_by) return alert('لازم تدخل اسم المسؤول المخوّل بالموافقة على الحملة');
+    if(selectedIds.length === 0) return alert('اختر موظف واحد على الأقل');
+
+    const { data: campaign, error } = await sb.from('campaigns').insert({
+      name, template_id, authorized_by, authorized_at: new Date().toISOString(), status: 'sent'
+    }).select().single();
+    if(error) return alert('خطأ: ' + error.message);
+
+    const targets = selectedIds.map(employee_id => ({ campaign_id: campaign.id, employee_id, email_sent_at: new Date().toISOString() }));
+    const { error: targetErr } = await sb.from('campaign_targets').insert(targets);
+    if(targetErr) return alert('خطأ بإضافة المستهدفين: ' + targetErr.message);
+
+    closeModal('campaignModal');
+    document.getElementById('campName').value = '';
+    document.getElementById('campAuthorizedBy').value = '';
+    await loadCampaigns();
+    viewCampaignDetail(campaign.id);
+  }
+
+  async function loadCampaigns(){
+    const { data, error } = await sb.from('campaigns').select('*, templates(name)').order('created_at', {ascending:false});
+    if(error) return;
+    campaignsCache = data;
+    const body = document.getElementById('campaignsBody');
+    if(data.length === 0){ body.innerHTML = '<tr><td colspan="5" class="empty">لا توجد حملات بعد</td></tr>'; return; }
+    body.innerHTML = data.map(c => `
+      <tr>
+        <td class="rowTitle">${c.name}</td>
+        <td data-label="القالب">${c.templates ? c.templates.name : '—'}</td>
+        <td data-label="الحالة"><span class="pill ${c.status}">${statusLabel(c.status)}</span></td>
+        <td data-label="المسؤول">${c.authorized_by}</td>
+        <td class="rowAction"><button class="btn secondary" onclick="viewCampaignDetail('${c.id}')">النتائج</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function statusLabel(s){
+    return { draft: 'مسودة', sent: 'أُرسلت', completed: 'مكتملة' }[s] || s;
+  }
+
+  async function viewCampaignDetail(campaignId){
+    const { data: targets, error } = await sb
+      .from('campaign_targets')
+      .select('*, employees(full_name, email)')
+      .eq('campaign_id', campaignId);
+    if(error) return alert(error.message);
+
+    const campaign = campaignsCache.find(c => c.id === campaignId);
+    document.getElementById('campaignDetailTitle').textContent = 'نتائج: ' + (campaign ? campaign.name : '');
+
+    const total = targets.length;
+    const clicked = targets.filter(t => t.link_clicked_at).length;
+    const submitted = targets.filter(t => t.data_submitted_at).length;
+    const trained = targets.filter(t => t.training_completed_at).length;
+
+    document.getElementById('campaignDetailStats').innerHTML = `
+      <div class="statBox"><div class="num mono">${total}</div><div class="lbl">إجمالي المستهدفين</div></div>
+      <div class="statBox risk"><div class="num mono">${total ? Math.round(clicked/total*100) : 0}%</div><div class="lbl">ضغطوا على الرابط</div></div>
+      <div class="statBox risk"><div class="num mono">${total ? Math.round(submitted/total*100) : 0}%</div><div class="lbl">أدخلوا بيانات</div></div>
+      <div class="statBox safe"><div class="num mono">${total ? Math.round(trained/total*100) : 0}%</div><div class="lbl">أنهوا التدريب</div></div>
+    `;
+
+    document.getElementById('campaignDetailBody').innerHTML = targets.map(t => {
+      let status = 'sent';
+      if(t.training_completed_at) status = 'completed';
+      else if(t.data_submitted_at) status = 'submitted';
+      else if(t.link_clicked_at) status = 'clicked';
+      const link = `${LANDING_PAGE_URL}?t=${t.tracking_token}`;
+      const sentBadge = t.email_actually_sent_at
+        ? `<span class="pill completed" style="margin-inline-start:6px">أُرسل فعليًا</span>`
+        : '';
+      return `
+        <tr>
+          <td class="rowTitle">${t.employees.full_name}${sentBadge}<br><span class="mono" style="color:var(--muted);font-size:11.5px">${t.employees.email}</span></td>
+          <td data-label="الحالة"><span class="pill ${status}">${statusLabel2(status)}</span></td>
+          <td data-label="الإجراء" style="display:block">
+            <div class="linkBox">${link}</div>
+            <div class="btnRow" style="margin-top:0">
+              <button class="btn secondary" style="flex:1" onclick="navigator.clipboard.writeText('${link}')">نسخ</button>
+              <button class="btn" style="flex:1" id="sendBtn-${t.id}" onclick="sendCampaignEmail('${t.id}', '${t.employees.email.replace(/'/g,"")}', '${t.employees.full_name.replace(/'/g,"")}', '${link}', '${campaignId}')">إرسال فعلي</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    openModal('campaignDetailModal');
+  }
+
+  const PHISHING_MESSAGE_BODY =
+`عزيزي الموظف،
+
+لأسباب أمنية، يرجى تحديث كلمة مرور حسابك عبر الرابط التالي خلال 24 ساعة وإلا سيتم تعليق الحساب مؤقتًا.
+
+تحديث كلمة المرور الآن: {{link}}
+
+قسم تقنية المعلومات`;
+
+  async function sendCampaignEmail(targetId, toEmail, toName, link, campaignId){
+    const btn = document.getElementById('sendBtn-' + targetId);
+    const originalText = btn.textContent;
+    btn.textContent = '...جاري الإرسال';
+    btn.disabled = true;
+
+    const messageBody = PHISHING_MESSAGE_BODY.replace('{{link}}', link);
+
+    try{
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_email: toEmail,
+        subject: 'تنبيه أمني: يجب تحديث كلمة مرورك خلال 24 ساعة',
+        message: messageBody
+      });
+      await sb.from('campaign_targets').update({ email_actually_sent_at: new Date().toISOString() }).eq('id', targetId);
+      btn.textContent = '✓ أُرسل';
+      btn.classList.add('secondary');
+    }catch(err){
+      alert('فشل الإرسال: ' + (err.text || err.message || 'خطأ غير معروف'));
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+  }
+
+  function statusLabel2(s){
+    return { sent: 'أُرسل', clicked: 'ضغط على الرابط', submitted: 'أدخل بيانات', completed: 'أنهى التدريب' }[s] || s;
+  }
+
+  // ---------- نظرة عامة ----------
+  function updateGauge(rate){
+    const circumference = 2 * Math.PI * 52;
+    const offset = circumference * (1 - rate / 100);
+    const arc = document.getElementById('gaugeArc');
+    arc.style.strokeDasharray = circumference;
+    arc.style.strokeDashoffset = offset;
+    const isRisk = rate > 25;
+    arc.classList.toggle('riskState', isRisk);
+    arc.style.stroke = isRisk ? 'var(--risk)' : 'var(--signal)';
+    document.getElementById('gaugeNum').textContent = rate + '%';
+  }
+
+  const ICON_USERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M15.5 12.5c2.5.3 4.5 2.5 4.5 5.5"/></svg>';
+  const ICON_TARGET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/></svg>';
+
+  async function renderDashboard(){
+    document.getElementById('statsRow').innerHTML = `
+      <div class="statBox">${ICON_USERS}<div><div class="num mono">${employeesCache.length}</div><div class="lbl">إجمالي الموظفين</div></div></div>
+      <div class="statBox">${ICON_TARGET}<div><div class="num mono">${campaignsCache.length}</div><div class="lbl">إجمالي الحملات</div></div></div>
+    `;
+
+    const body = document.getElementById('dashboardCampaignsBody');
+    if(campaignsCache.length === 0){
+      body.innerHTML = '<tr><td colspan="4" class="empty">لا توجد حملات بعد</td></tr>';
+      updateGauge(0);
+      return;
+    }
+
+    let totalAll = 0, clickedAll = 0;
+    const rows = await Promise.all(campaignsCache.map(async c => {
+      const { data: targets } = await sb.from('campaign_targets').select('link_clicked_at').eq('campaign_id', c.id);
+      const total = targets ? targets.length : 0;
+      const clicked = targets ? targets.filter(t => t.link_clicked_at).length : 0;
+      totalAll += total; clickedAll += clicked;
+      const rate = total ? Math.round(clicked/total*100) : 0;
+      return `
+        <tr>
+          <td class="rowTitle">${c.name}</td>
+          <td data-label="الحالة"><span class="pill ${c.status}">${statusLabel(c.status)}</span></td>
+          <td data-label="المستهدفون" class="mono">${total}</td>
+          <td data-label="نسبة الوقوع" class="mono" style="color:${rate > 30 ? 'var(--risk)' : 'var(--safe)'}">${rate}%</td>
+        </tr>
+      `;
+    }));
+    body.innerHTML = rows.join('');
+    updateGauge(totalAll ? Math.round(clickedAll/totalAll*100) : 0);
+  }
+</script>
+</body>
+</html>
