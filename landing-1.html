@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لحظة — قبل ما تكمل</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#090C0F;
+    --bg-grid:#0D1216;
+    --panel:#11161B;
+    --panel-2:#161D23;
+    --line:#232C33;
+    --line-soft:#1A2129;
+    --signal:#48E4D0;
+    --risk:#FF5D3B;
+    --risk-dim:#3A1F17;
+    --warn:#F0B429;
+    --text:#E7EEED;
+    --muted:#7E8D93;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    background:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0/100% 44px,
+      var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:24px;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace}
+  .card{
+    position:relative;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    max-width:560px;width:100%;padding:38px 32px;
+  }
+  .card::before,.card::after{content:'';position:absolute;width:16px;height:16px}
+  .card::before{top:-1px;right:-1px;border-top:2px solid var(--risk);border-right:2px solid var(--risk)}
+  .card::after{bottom:-1px;left:-1px;border-bottom:2px solid var(--risk);border-left:2px solid var(--risk)}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:7px;
+    background:var(--risk-dim);color:var(--risk);
+    border:1px solid rgba(255,93,59,0.3);
+    padding:6px 14px;border-radius:20px;font-size:12.5px;font-weight:600;margin-bottom:22px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .badge .dot{width:6px;height:6px;border-radius:50%;background:var(--risk)}
+  h1{font-size:22px;line-height:1.5;margin-bottom:14px;font-weight:700}
+  p.desc{color:var(--muted);font-size:14.5px;line-height:1.8;margin-bottom:8px}
+
+  .lesson{
+    background:var(--panel-2);border:1px solid var(--line);
+    border-right:2px solid var(--signal);
+    border-radius:6px;padding:20px 22px;margin:24px 0;
+  }
+  .lesson h2{font-size:14px;color:var(--signal);margin-bottom:14px;font-weight:600}
+  .lesson ul{padding-inline-start:20px;color:var(--text)}
+  .lesson li{margin-bottom:11px;line-height:1.7;font-size:13.5px}
+  .lesson li:last-child{margin-bottom:0}
+
+  button{
+    background:var(--signal);color:#06201C;border:none;padding:14px 28px;border-radius:6px;
+    font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;
+  }
+  button:hover{filter:brightness(1.06)}
+  .done{
+    color:var(--signal);font-weight:600;display:none;margin-top:14px;font-size:13.5px;
+    text-align:center;font-family:'IBM Plex Mono', monospace;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge"><span class="dot"></span>تدريب أمني — لا يوجد بيانات فعلية انسرقت</span>
+    <h1>لو كانت هاي رسالة حقيقية، كنت وقعت بفخ تصيّد احتيالي</h1>
+    <p class="desc">هاي محاكاة تدريبية أطلقتها مؤسستك لرفع الوعي الأمني. الرابط يلي ضغطت عليه كان يشبه رسائل التصيّد الحقيقية التي يستخدمها المخترقون.</p>
+
+    <div class="lesson">
+      <h2>كيف تلاحظ رسالة تصيّد لاحقًا؟</h2>
+      <ul>
+        <li>تفحّص عنوان المرسل الفعلي، مو بس الاسم الظاهر</li>
+        <li>احذر من أي رسالة تضغط عليك بوقت محدود أو تهديد بإغلاق الحساب</li>
+        <li>مرّر الفأرة فوق الرابط قبل الضغط لتشوف الوجهة الحقيقية</li>
+        <li>لا تُدخل كلمة السر إلا من الموقع الرسمي مباشرة، مو عبر رابط بإيميل</li>
+        <li>عند الشك، تواصل مع قسم تقنية المعلومات مباشرة للتأكد</li>
+      </ul>
+    </div>
+
+    <button id="ackBtn" onclick="markDone()">فهمت، أنهي التدريب</button>
+    <p class="done mono" id="doneMsg">✓ تم تسجيل إتمامك للتدريب</p>
+  </div>
+
+<script>
+  const SUPABASE_URL = "https://jkulprntmtumvpoperbr.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprdWxwcm50bXR1bXZwb3BlcmJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxNjA5NjMsImV4cCI6MjEwNDczNjk2M30.b8sBmZi_okr8FoaHIUpBGeFVKlmu8HkTDA0q8IEh3q0";
+
+  function getToken(){
+    const params = new URLSearchParams(window.location.search);
+    return params.get('t');
+  }
+
+  async function logEvent(eventType){
+    const token = getToken();
+    if(!token) return;
+    try{
+      await fetch(`${SUPABASE_URL}/rest/v1/rpc/log_phishing_click`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          p_token: token,
+          p_event: eventType,
+          p_user_agent: navigator.userAgent
+        })
+      });
+    }catch(e){ console.error('logging failed', e); }
+  }
+
+  logEvent('link_clicked');
+
+  function markDone(){
+    logEvent('training_completed');
+    document.getElementById('ackBtn').style.display = 'none';
+    document.getElementById('doneMsg').style.display = 'block';
+  }
+</script>
+</body>
+</html>
